@@ -1,0 +1,68 @@
+name: Build Daybreak Classic
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the 32-bit Windows toolchain
+        run: sudo apt-get update -q && sudo apt-get install -y -q gcc-mingw-w64-i686 binutils-mingw-w64-i686 zip
+
+      - name: Build
+        shell: bash
+        run: |
+          set -o pipefail
+          ./build.sh 2>&1 | tee build.log
+          echo "V=$(tr -d ' \r\n' < VERSION)" >> "$GITHUB_ENV"
+
+      - name: Check what Windows functions it uses
+        run: |
+          i686-w64-mingw32-objdump -p build/Daybreak.exe | grep -E "DLL Name|^\s+[0-9a-f]+\s+[0-9]+\s+\w" > build/imports.txt || true
+          i686-w64-mingw32-objdump -p build/Daybreak.exe | grep -E "MajorOSystemVersion|MinorOSystemVersion|MajorSubsystemVersion|MinorSubsystemVersion|Subsystem" >> build/imports.txt
+          cat build/imports.txt
+
+      - name: Package
+        run: |
+          mkdir -p out/pkg
+          cp build/Daybreak.exe "out/Daybreak-Classic-$V.exe"
+          cp build/Daybreak.exe out/pkg/Daybreak.exe
+          cp README.txt out/pkg/README.txt
+          (cd out/pkg && zip -q "../Daybreak-Classic-$V.zip" Daybreak.exe README.txt)
+          ls -la out
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete "classic-v$V" --yes --cleanup-tag || true
+          gh release create "classic-v$V" "out/Daybreak-Classic-$V.exe" "out/Daybreak-Classic-$V.zip" \
+            --title "Daybreak Classic $V" \
+            --notes "For Windows 95, 98, Me, 2000, XP, Vista, 7, 8, 8.1, 10 and 11. No installer needed: copy Daybreak.exe anywhere and run it. Built from ${GITHUB_SHA::7}."
+
+      - name: Save to builds branch
+        run: |
+          mkdir keep && cp build/Daybreak.exe build/imports.txt keep/ && cd keep
+          git init -q -b builds
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add . && git commit -q -m "Daybreak Classic $V from ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" builds
+
+      - name: Save failure log
+        if: failure()
+        run: |
+          mkdir faillog && (cp build.log faillog/ 2>/dev/null || echo "no log" > faillog/build.log) && cd faillog
+          git init -q -b ci-log
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add . && git commit -q -m "Failed build log"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-log

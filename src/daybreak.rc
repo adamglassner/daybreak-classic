@@ -1,0 +1,116 @@
+#include <windows.h>
+#include <commctrl.h>
+#include "resource.h"
+#include "version.h"
+
+IDI_APP ICON "daybreak.ico"
+
+1 24 "daybreak.manifest"
+
+1 VERSIONINFO
+FILEVERSION     VER_MAJOR,VER_MINOR,VER_PATCH,0
+PRODUCTVERSION  VER_MAJOR,VER_MINOR,VER_PATCH,0
+FILEOS          0x4
+FILETYPE        0x1
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904E4"
+    BEGIN
+      VALUE "CompanyName",      "Adam Glassner"
+      VALUE "FileDescription",  "Daybreak Classic alarm clock"
+      VALUE "FileVersion",      VER_STRING
+      VALUE "InternalName",     "daybreak"
+      VALUE "LegalCopyright",   "(c) 2026 Adam Glassner"
+      VALUE "OriginalFilename", "Daybreak.exe"
+      VALUE "ProductName",      "Daybreak Classic"
+      VALUE "ProductVersion",   VER_STRING
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1252
+  END
+END
+
+IDD_ALARM DIALOG 0, 0, 252, 214
+STYLE DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Alarm"
+FONT 8, "MS Sans Serif"
+BEGIN
+  LTEXT           "Time:", -1, 8, 10, 40, 8
+  EDITTEXT        IDC_HOUR, 52, 8, 26, 13, ES_NUMBER
+  CONTROL         "", IDC_HOURSPIN, "msctls_updown32", UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_WRAP | UDS_NOTHOUSANDS, 78, 8, 10, 13
+  LTEXT           ":", -1, 92, 10, 4, 8
+  EDITTEXT        IDC_MINUTE, 98, 8, 26, 13, ES_NUMBER
+  CONTROL         "", IDC_MINSPIN, "msctls_updown32", UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_WRAP | UDS_NOTHOUSANDS, 124, 8, 10, 13
+  COMBOBOX        IDC_AMPM, 140, 8, 36, 40, CBS_DROPDOWNLIST | WS_TABSTOP
+  LTEXT           "Name:", -1, 8, 30, 40, 8
+  EDITTEXT        IDC_LABEL, 52, 28, 192, 13, ES_AUTOHSCROLL
+  GROUPBOX        "Repeat on", -1, 8, 48, 236, 30
+  AUTOCHECKBOX    "Sun", IDC_DAY0 + 0, 14, 60, 30, 10
+  AUTOCHECKBOX    "Mon", IDC_DAY0 + 1, 46, 60, 30, 10
+  AUTOCHECKBOX    "Tue", IDC_DAY0 + 2, 78, 60, 30, 10
+  AUTOCHECKBOX    "Wed", IDC_DAY0 + 3, 110, 60, 32, 10
+  AUTOCHECKBOX    "Thu", IDC_DAY0 + 4, 144, 60, 30, 10
+  AUTOCHECKBOX    "Fri", IDC_DAY0 + 5, 176, 60, 28, 10
+  AUTOCHECKBOX    "Sat", IDC_DAY0 + 6, 206, 60, 30, 10
+  LTEXT           "Leave all days unchecked for a one-time alarm.", -1, 8, 82, 236, 8
+  LTEXT           "Sound:", -1, 8, 100, 40, 8
+  EDITTEXT        IDC_SOUNDNAME, 52, 98, 104, 13, ES_READONLY | ES_AUTOHSCROLL
+  PUSHBUTTON      "Browse...", IDC_BROWSE, 160, 97, 42, 15
+  PUSHBUTTON      "Default", IDC_DEFSOUND, 204, 97, 40, 15
+  AUTOCHECKBOX    "Gradually increase volume over", IDC_GRADUAL, 8, 122, 124, 10
+  COMBOBOX        IDC_RAMP, 136, 120, 60, 60, CBS_DROPDOWNLIST | WS_TABSTOP
+  LTEXT           "Snooze for:", -1, 8, 144, 44, 8
+  COMBOBOX        IDC_SNOOZE, 52, 142, 70, 80, CBS_DROPDOWNLIST | WS_TABSTOP
+  PUSHBUTTON      "&Test sound", IDC_TEST, 8, 190, 56, 15
+  DEFPUSHBUTTON   "OK", IDOK, 136, 190, 50, 15
+  PUSHBUTTON      "Cancel", IDCANCEL, 194, 190, 50, 15
+END
+
+IDD_BEDTIME DIALOG 0, 0, 236, 186
+STYLE DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Bedtime"
+FONT 8, "MS Sans Serif"
+BEGIN
+  AUTOCHECKBOX    "Remind me when it's almost bedtime", IDC_BEDON, 8, 8, 200, 10
+  LTEXT           "Bedtime:", -1, 8, 28, 40, 8
+  EDITTEXT        IDC_BEDHOUR, 52, 26, 26, 13, ES_NUMBER
+  CONTROL         "", IDC_BEDHSPIN, "msctls_updown32", UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_WRAP | UDS_NOTHOUSANDS, 78, 26, 10, 13
+  LTEXT           ":", -1, 92, 28, 4, 8
+  EDITTEXT        IDC_BEDMIN, 98, 26, 26, 13, ES_NUMBER
+  CONTROL         "", IDC_BEDMSPIN, "msctls_updown32", UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_WRAP | UDS_NOTHOUSANDS, 124, 26, 10, 13
+  COMBOBOX        IDC_BEDAMPM, 140, 26, 36, 40, CBS_DROPDOWNLIST | WS_TABSTOP
+  LTEXT           "Wake up:", -1, 8, 48, 40, 8
+  EDITTEXT        IDC_WAKEHOUR, 52, 46, 26, 13, ES_NUMBER
+  CONTROL         "", IDC_WAKEHSPIN, "msctls_updown32", UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_WRAP | UDS_NOTHOUSANDS, 78, 46, 10, 13
+  LTEXT           ":", -1, 92, 48, 4, 8
+  EDITTEXT        IDC_WAKEMIN, 98, 46, 26, 13, ES_NUMBER
+  CONTROL         "", IDC_WAKEMSPIN, "msctls_updown32", UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_WRAP | UDS_NOTHOUSANDS, 124, 46, 10, 13
+  COMBOBOX        IDC_WAKEAMPM, 140, 46, 36, 40, CBS_DROPDOWNLIST | WS_TABSTOP
+  LTEXT           "Remind me:", -1, 8, 68, 44, 8
+  COMBOBOX        IDC_REMIND, 52, 66, 90, 80, CBS_DROPDOWNLIST | WS_TABSTOP
+  GROUPBOX        "Nights", -1, 8, 86, 220, 30
+  AUTOCHECKBOX    "Sun", IDC_BDAY0 + 0, 12, 98, 30, 10
+  AUTOCHECKBOX    "Mon", IDC_BDAY0 + 1, 42, 98, 30, 10
+  AUTOCHECKBOX    "Tue", IDC_BDAY0 + 2, 72, 98, 30, 10
+  AUTOCHECKBOX    "Wed", IDC_BDAY0 + 3, 102, 98, 32, 10
+  AUTOCHECKBOX    "Thu", IDC_BDAY0 + 4, 134, 98, 30, 10
+  AUTOCHECKBOX    "Fri", IDC_BDAY0 + 5, 164, 98, 28, 10
+  AUTOCHECKBOX    "Sat", IDC_BDAY0 + 6, 192, 98, 30, 10
+  AUTOCHECKBOX    "Also set a ""Wake up"" alarm at the wake-up time", IDC_BEDLINK, 8, 124, 220, 10
+  DEFPUSHBUTTON   "OK", IDOK, 120, 164, 50, 15
+  PUSHBUTTON      "Cancel", IDCANCEL, 178, 164, 50, 15
+END
+
+IDD_ZONES DIALOG 0, 0, 180, 196
+STYLE DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "World clocks"
+FONT 8, "MS Sans Serif"
+BEGIN
+  LTEXT           "Choose up to 6 cities to show on the clock:", -1, 8, 6, 164, 8
+  LISTBOX         IDC_ZONELIST, 8, 18, 164, 152, LBS_MULTIPLESEL | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_BORDER | WS_TABSTOP
+  DEFPUSHBUTTON   "OK", IDOK, 64, 176, 50, 15
+  PUSHBUTTON      "Cancel", IDCANCEL, 122, 176, 50, 15
+END
