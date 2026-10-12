@@ -56,6 +56,8 @@ enum { TAB_CLOCK, TAB_ALARMS, TAB_STOP, TAB_TIMER, TAB_SETTINGS, TAB_COUNT };
 #define ID_UPDOPEN     369
 #define ID_UPDSTATUS   370
 #define ID_ABOUT       371
+#define ID_BACKUP      372
+#define ID_RESTORE     373
 #define ID_SNOOZE      400
 #define ID_DISMISS     401
 #define ID_TRAY_OPEN   500
@@ -120,6 +122,10 @@ static void theme_apply(void) {
         P.bg = RGB(0, 0, 0); P.panel = RGB(3, 13, 5); P.text = RGB(51, 255, 102); P.muted = RGB(34, 170, 76);
         P.accent = RGB(124, 255, 158); P.face = RGB(0, 0, 0); P.hand = RGB(51, 255, 102); P.sec = RGB(182, 255, 61);
         break;
+    case TH_RETRO:
+        P.bg = RGB(30, 25, 20); P.panel = RGB(43, 35, 27); P.text = RGB(242, 226, 196); P.muted = RGB(184, 166, 135);
+        P.accent = RGB(242, 181, 68); P.face = RGB(242, 226, 196); P.hand = RGB(43, 35, 27); P.sec = RGB(179, 64, 42);
+        break;
     case TH_RADIO:
         P.bg = RGB(31, 26, 23); P.panel = RGB(10, 6, 6); P.text = RGB(233, 220, 196); P.muted = RGB(154, 143, 132);
         P.accent = RGB(255, 45, 79); P.face = RGB(10, 6, 6); P.hand = RGB(233, 220, 196); P.sec = RGB(255, 45, 79);
@@ -144,7 +150,7 @@ static HFONT make_font(int height, int weight, const char *face) {
 }
 
 static void fonts_apply(void) {
-    const char *face = S.theme == TH_TERMINAL ? "Courier New" : "Arial";
+    const char *face = S.theme == TH_TERMINAL ? "Courier New" : (S.theme == TH_RETRO ? "Impact" : "Arial");
     if (g_big) DeleteObject(g_big);
     if (g_huge) DeleteObject(g_huge);
     if (g_small) DeleteObject(g_small);
@@ -208,8 +214,8 @@ static void dial_pt(int cx, int cy, int idx, int r, int *x, int *y) {
 
 static void draw_analog(HDC dc, int cx, int cy, int r, int h, int m, int s) {
     int i, x1, y1, x2, y2;
-    COLORREF rim = S.theme == TH_RADIO ? RGB(58, 52, 48) : (S.theme == TH_CLASSIC ? RGB(128, 128, 128) : P.muted);
-    circle(dc, cx, cy, r, P.face, rim, S.theme == TH_RADIO ? 6 : 2);
+    COLORREF rim = S.theme == TH_RADIO ? RGB(58, 52, 48) : (S.theme == TH_CLASSIC ? RGB(128, 128, 128) : (S.theme == TH_RETRO ? RGB(200, 150, 62) : P.muted));
+    circle(dc, cx, cy, r, P.face, rim, S.theme == TH_RADIO ? 6 : (S.theme == TH_RETRO ? 7 : 2));
     if (S.theme == TH_RADIO) circle(dc, cx, cy, r * 82 / 100, P.face, RGB(194, 86, 43), 1);
     for (i = 0; i < 60; i++) {
         int major = i % 5 == 0;
@@ -287,6 +293,21 @@ static int draw_led(HDC dc, int x, int y, int h, const char *text) {
     return x - startX;
 }
 
+/* A retro flip-clock tile with a split line across the middle. Returns its width. */
+static int flip_tile(HDC dc, int x, int y, const char *text, int small) {
+    HFONT f = small ? g_big : g_huge;
+    int tw = text_width(dc, text, f), w = tw + 14, h = small ? 40 : 60;
+    HBRUSH b = CreateSolidBrush(RGB(43, 35, 27));
+    HPEN pen = CreatePen(PS_SOLID, 2, RGB(74, 61, 46));
+    HGDIOBJ ob = SelectObject(dc, b), op = SelectObject(dc, pen);
+    RoundRect(dc, x, y, x + w, y + h, 10, 10);
+    SelectObject(dc, ob); SelectObject(dc, op);
+    DeleteObject(b); DeleteObject(pen);
+    text_at(dc, x + 7, y + (small ? 3 : 2), text, f, small ? P.accent : P.text);
+    fill_rect(dc, x + 1, y + h / 2, w - 2, 2, RGB(30, 25, 20));
+    return w;
+}
+
 static const char *weather_text(int code) {
     if (code == 0) return "Clear";
     if (code == 1) return "Mostly clear";
@@ -343,6 +364,14 @@ static void paint_panel(HWND hwnd, HDC dc) {
         if (S.theme == TH_RADIO) {
             int lw = draw_led(dc, 218, top + 16, 48, buf);
             if (!S.use24) text_at(dc, 222 + lw, top + 46, t.wHour < 12 ? "AM" : "PM", g_bold, P.muted);
+        } else if (S.theme == TH_RETRO) {
+            int x = 216, hh = S.use24 ? t.wHour : (t.wHour % 12 == 0 ? 12 : t.wHour % 12);
+            wsprintfA(buf2, "%02d", hh);
+            x += flip_tile(dc, x, top + 12, buf2, 0) + 6;
+            wsprintfA(buf2, "%02d", t.wMinute);
+            x += flip_tile(dc, x, top + 12, buf2, 0) + 6;
+            if (S.showSec) { wsprintfA(buf2, "%02d", t.wSecond); x += flip_tile(dc, x, top + 30, buf2, 1) + 6; }
+            if (!S.use24) text_at(dc, x, top + 46, t.wHour < 12 ? "AM" : "PM", g_bold, P.accent);
         } else {
             if (S.theme == TH_TERMINAL) text_at(dc, 218, top, "C:\\> TIME", g_small, P.muted);
             text_at(dc, 214, top + 14, buf, S.showSec ? g_big : g_huge, P.text);
@@ -654,6 +683,7 @@ static void create_pages(void) {
     SendMessageA(c, CB_ADDSTRING, 0, (LPARAM)"Dark");
     SendMessageA(c, CB_ADDSTRING, 0, (LPARAM)"Terminal (green on black)");
     SendMessageA(c, CB_ADDSTRING, 0, (LPARAM)"Clock radio");
+    SendMessageA(c, CB_ADDSTRING, 0, (LPARAM)"Retro");
     add_ctl(TAB_SETTINGS, "BUTTON", "Use 24-hour time", WS_TABSTOP | BS_AUTOCHECKBOX, 10, 88, 300, 20, ID_USE24);
     add_ctl(TAB_SETTINGS, "BUTTON", "Show seconds", WS_TABSTOP | BS_AUTOCHECKBOX, 10, 112, 300, 20, ID_SHOWSEC);
     add_ctl(TAB_SETTINGS, "BUTTON", "Start Daybreak when Windows starts", WS_TABSTOP | BS_AUTOCHECKBOX, 10, 136, 360, 20, ID_AUTOSTART);
@@ -665,7 +695,9 @@ static void create_pages(void) {
     add_ctl(TAB_SETTINGS, "BUTTON", "Check for &updates", WS_TABSTOP | BS_PUSHBUTTON, 10, 272, 150, 28, ID_UPDCHECK);
     add_ctl(TAB_SETTINGS, "BUTTON", "Download page", WS_TABSTOP | BS_PUSHBUTTON, 170, 272, 130, 28, ID_UPDOPEN);
     add_ctl(TAB_SETTINGS, "STATIC", "", SS_LEFT | SS_NOPREFIX, 10, 306, 460, 34, ID_UPDSTATUS);
-    add_ctl(TAB_SETTINGS, "STATIC", "", SS_LEFT | SS_NOPREFIX, 10, 360, 460, 80, ID_ABOUT);
+    add_ctl(TAB_SETTINGS, "BUTTON", "&Back up alarms...", WS_TABSTOP | BS_PUSHBUTTON, 10, 350, 150, 28, ID_BACKUP);
+    add_ctl(TAB_SETTINGS, "BUTTON", "R&estore alarms...", WS_TABSTOP | BS_PUSHBUTTON, 170, 350, 150, 28, ID_RESTORE);
+    add_ctl(TAB_SETTINGS, "STATIC", "", SS_LEFT | SS_NOPREFIX, 10, 392, 460, 110, ID_ABOUT);
 }
 
 /* ---------- the alarm engine ---------- */
@@ -1192,6 +1224,263 @@ static void update_check(int quiet) {
     if (h) CloseHandle(h);
 }
 
+/* ---------- backup & restore ----------
+ * A small JSON file shared with the regular Daybreak apps (Android, Windows 10/11, Linux),
+ * so alarms can move between an old PC and a phone.
+ */
+
+typedef struct { char *buf; int len, cap; } Out;
+
+static void out_add(Out *o, const char *s) {
+    int n = str_len(s);
+    if (o->len + n + 1 > o->cap) return;
+    memcpy(o->buf + o->len, s, (size_t)n);
+    o->len += n;
+    o->buf[o->len] = 0;
+}
+
+static void out_json_str(Out *o, const char *s) {
+    char tmp[4];
+    out_add(o, "\"");
+    for (; *s; s++) {
+        unsigned char ch = (unsigned char)*s;
+        if (ch == '"' || ch == '\\') { tmp[0] = '\\'; tmp[1] = (char)ch; tmp[2] = 0; }
+        else if (ch < 32) { tmp[0] = ' '; tmp[1] = 0; }
+        else { tmp[0] = (char)ch; tmp[1] = 0; }
+        out_add(o, tmp);
+    }
+    out_add(o, "\"");
+}
+
+static void out_days(Out *o, int bits) {
+    /* Regular Daybreak numbers days 1 = Monday ... 7 = Sunday. */
+    int i, first = 1;
+    char n[8];
+    out_add(o, "[");
+    for (i = 1; i <= 7; i++) {
+        if (bits & (1 << (i % 7))) {
+            wsprintfA(n, first ? "%d" : ", %d", i);
+            out_add(o, n);
+            first = 0;
+        }
+    }
+    out_add(o, "]");
+}
+
+static int pick_file(HWND owner, char *path, int save) {
+    OPENFILENAMEA ofn;
+    memset(&ofn, 0, sizeof(ofn));
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = owner;
+    ofn.lpstrFilter = "Daybreak backup (*.json)\0*.json\0All files (*.*)\0*.*\0";
+    ofn.lpstrFile = path;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.lpstrDefExt = "json";
+    if (save) {
+        ofn.lpstrTitle = "Back up alarms";
+        ofn.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY;
+        return GetSaveFileNameA(&ofn);
+    }
+    ofn.lpstrTitle = "Restore alarms";
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY;
+    return GetOpenFileNameA(&ofn);
+}
+
+static void backup_save(HWND owner) {
+    char path[MAX_PATH], line[400], name[64];
+    SYSTEMTIME t;
+    Out o;
+    int i, first = 1;
+    HANDLE f;
+    DWORD written;
+    GetLocalTime(&t);
+    wsprintfA(path, "daybreak-alarms-%04d-%02d-%02d.json", t.wYear, t.wMonth, t.wDay);
+    if (!pick_file(owner, path, 1)) return;
+    o.cap = 65536;
+    o.len = 0;
+    o.buf = (char *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, (SIZE_T)o.cap);
+    if (!o.buf) return;
+    out_add(&o, "{\r\n  \"format\": \"daybreak-backup\",\r\n  \"version\": 1,\r\n  \"app\": \"Daybreak Classic " VER_STRING "\",\r\n  \"alarms\": [");
+    for (i = 0; i < MAX_ALARMS; i++) {
+        Alarm *a = &A[i];
+        if (!a->used) continue;
+        out_add(&o, first ? "\r\n    {" : ",\r\n    {");
+        first = 0;
+        wsprintfA(line, "\"id\": %d, \"hour\": %d, \"minute\": %d, \"days\": ", i + 1, a->hour, a->minute);
+        out_add(&o, line);
+        out_days(&o, a->days);
+        out_add(&o, ", \"label\": ");
+        out_json_str(&o, a->label);
+        wsprintfA(line, ", \"enabled\": %s, \"vibrate\": true, \"gradual\": %s, \"ramp\": %d, \"snooze\": %d, \"soundUri\": ",
+                  a->enabled ? "true" : "false", a->gradual ? "true" : "false", a->ramp, a->snooze);
+        out_add(&o, line);
+        out_json_str(&o, a->sound);
+        out_add(&o, ", \"soundName\": ");
+        sound_label(name, a->sound);
+        out_json_str(&o, a->sound[0] ? name : "Default alarm");
+        out_add(&o, "}");
+    }
+    out_add(&o, "\r\n  ],\r\n  \"bedtime\": {");
+    wsprintfA(line, "\"enabled\": %s, \"bedHour\": %d, \"bedMinute\": %d, \"wakeHour\": %d, \"wakeMinute\": %d, \"remind\": %d, \"link\": %s, \"days\": ",
+              S.bedOn ? "true" : "false", S.bedH, S.bedM, S.wakeH, S.wakeM, S.remind, S.bedLink ? "true" : "false");
+    out_add(&o, line);
+    out_days(&o, S.bedDays);
+    out_add(&o, "}\r\n}\r\n");
+
+    f = CreateFileA(path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (f == INVALID_HANDLE_VALUE || !WriteFile(f, o.buf, (DWORD)o.len, &written, NULL) || written != (DWORD)o.len) {
+        if (f != INVALID_HANDLE_VALUE) CloseHandle(f);
+        MessageBoxA(owner, "The backup couldn't be saved there. Try another folder.", APP_NAME, MB_OK | MB_ICONEXCLAMATION);
+    } else {
+        CloseHandle(f);
+        MessageBoxA(owner, "Your alarms were backed up.\n\nYou can restore this file in Daybreak Classic, or in Daybreak on your phone or a newer PC.", APP_NAME, MB_OK | MB_ICONINFORMATION);
+    }
+    HeapFree(GetProcessHeap(), 0, o.buf);
+}
+
+/* Finds "key": in an object and returns the text after the colon (spaces skipped). */
+static const char *json_val(const char *obj, const char *key) {
+    char k[40];
+    const char *p;
+    wsprintfA(k, "\"%s\"", key);
+    p = str_find(obj, k);
+    if (!p) return 0;
+    p += str_len(k);
+    while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') p++;
+    if (*p != ':') return 0;
+    p++;
+    while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') p++;
+    return p;
+}
+
+static int json_bool(const char *obj, const char *key, int def) {
+    const char *p = json_val(obj, key);
+    if (!p) return def;
+    return str_starts(p, "true") || (*p >= '1' && *p <= '9');
+}
+
+static int json_int(const char *obj, const char *key, int def) {
+    const char *p = json_val(obj, key);
+    return p ? parse_int(p) : def;
+}
+
+static void json_string(const char *obj, const char *key, char *out, int n) {
+    const char *p = json_val(obj, key);
+    int i = 0;
+    out[0] = 0;
+    if (!p || *p != '"') return;
+    p++;
+    while (*p && *p != '"' && i < n - 1) {
+        if (*p == '\\' && p[1]) {
+            p++;
+            if (*p == 'u') { out[i++] = '?'; p += 4; if (!*p) break; }
+            else if (*p == 'n' || *p == 't' || *p == 'r') out[i++] = ' ';
+            else out[i++] = *p;
+            p++;
+        } else {
+            out[i++] = *p++;
+        }
+    }
+    out[i] = 0;
+}
+
+static int json_days(const char *obj, const char *key) {
+    const char *p = json_val(obj, key);
+    int bits = 0;
+    if (!p || *p != '[') return 0;
+    p++;
+    while (*p && *p != ']') {
+        if (*p >= '1' && *p <= '7') bits |= 1 << ((*p - '0') % 7);
+        p++;
+    }
+    return bits;
+}
+
+static void backup_restore(HWND owner) {
+    char path[MAX_PATH], msg[200];
+    HANDLE f;
+    DWORD size, got;
+    char *buf, *p;
+    int count = 0, added = 0, answer, i;
+    path[0] = 0;
+    if (!pick_file(owner, path, 0)) return;
+    f = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (f == INVALID_HANDLE_VALUE) { MessageBoxA(owner, "That file couldn't be opened.", APP_NAME, MB_OK | MB_ICONEXCLAMATION); return; }
+    size = GetFileSize(f, NULL);
+    if (size == (DWORD)-1 || size > 512 * 1024) { CloseHandle(f); MessageBoxA(owner, "That doesn't look like a Daybreak backup.", APP_NAME, MB_OK | MB_ICONEXCLAMATION); return; }
+    buf = (char *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size + 1);
+    if (!buf) { CloseHandle(f); return; }
+    ReadFile(f, buf, size, &got, NULL);
+    CloseHandle(f);
+    buf[got] = 0;
+
+    p = (char *)json_val(buf, "alarms");
+    if (!p || *p != '[') {
+        MessageBoxA(owner, "That doesn't look like a Daybreak backup.", APP_NAME, MB_OK | MB_ICONEXCLAMATION);
+        HeapFree(GetProcessHeap(), 0, buf);
+        return;
+    }
+    { /* count the alarms first */
+        const char *q = p + 1;
+        while (*q && *q != ']') { if (*q == '{') count++; q++; }
+    }
+    wsprintfA(msg, "This backup has %d alarm(s).\n\nReplace your current alarms with them?\n\nYes = replace, No = add them to your alarms.", count);
+    answer = MessageBoxA(owner, msg, APP_NAME, MB_YESNOCANCEL | MB_ICONQUESTION);
+    if (answer == IDCANCEL) { HeapFree(GetProcessHeap(), 0, buf); return; }
+    if (answer == IDYES) {
+        for (i = 0; i < MAX_ALARMS; i++) { A[i].used = 0; g_snoozeAt[i] = 0; }
+        S.bedAlarm = -1;
+    }
+    p++;
+    while (*p && *p != ']') {
+        char *start, *end, saved;
+        int slot;
+        if (*p != '{') { p++; continue; }
+        start = p;
+        end = start;
+        while (*end && *end != '}') end++;
+        if (!*end) break;
+        saved = *end;
+        *end = 0;
+        slot = alarm_new();
+        if (slot >= 0) {
+            Alarm *a = &A[slot];
+            a->hour = json_int(start, "hour", 7) % 24;
+            a->minute = json_int(start, "minute", 0) % 60;
+            a->days = json_days(start, "days");
+            a->enabled = json_bool(start, "enabled", 1);
+            a->gradual = json_bool(start, "gradual", 1);
+            a->ramp = json_int(start, "ramp", 60);
+            a->snooze = json_int(start, "snooze", 10);
+            if (a->snooze < 1 || a->snooze > 60) a->snooze = 10;
+            json_string(start, "label", a->label, sizeof(a->label));
+            json_string(start, "soundUri", a->sound, MAX_PATH);
+            /* Sounds from a phone or another PC won't exist here: use the built-in tone. */
+            if (!(a->sound[0] && a->sound[1] == ':' && file_exists(a->sound))) a->sound[0] = 0;
+            added++;
+        }
+        *end = saved;
+        p = end + 1;
+    }
+    {
+        const char *b = json_val(buf, "bedtime");
+        if (b && *b == '{' && answer == IDYES) {
+            S.bedOn = json_bool(b, "enabled", 0);
+            S.bedH = json_int(b, "bedHour", 23) % 24;
+            S.bedM = json_int(b, "bedMinute", 0) % 60;
+            S.wakeH = json_int(b, "wakeHour", 6) % 24;
+            S.wakeM = json_int(b, "wakeMinute", 30) % 60;
+            S.remind = json_int(b, "remind", 30);
+            S.bedDays = json_days(b, "days");
+            S.bedLink = 0;
+        }
+    }
+    store_save();
+    HeapFree(GetProcessHeap(), 0, buf);
+    wsprintfA(msg, "Restored %d alarm(s).", added);
+    MessageBoxA(owner, msg, APP_NAME, MB_OK | MB_ICONINFORMATION);
+}
+
 /* ---------- tray ---------- */
 
 static void tray_add(void) {
@@ -1434,6 +1723,13 @@ static LRESULT CALLBACK MainProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             break;
         case ID_UPDCHECK:
             update_check(0);
+            break;
+        case ID_BACKUP:
+            backup_save(hwnd);
+            break;
+        case ID_RESTORE:
+            backup_restore(hwnd);
+            alarms_refresh();
             break;
         case ID_UPDOPEN:
             if (g_updVersion[0]) {

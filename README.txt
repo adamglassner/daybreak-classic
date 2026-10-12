@@ -20,7 +20,9 @@ What it does
   that rises gradually
 * Bedtime reminder, with an optional matching wake-up alarm
 * Stopwatch with laps, and a timer
-* Themes: Classic, Dark, Terminal (green on black) and Clock radio
+* Themes: Classic, Dark, Terminal (green on black), Clock radio and Retro
+* Back up and restore alarms (the backup file also works in Daybreak
+  on Android, Windows 10/11 and Linux)
 * Windows 7 and later: weather for your city, and update checks
 
 Settings are kept in daybreak.ini, in your Application Data folder (or next

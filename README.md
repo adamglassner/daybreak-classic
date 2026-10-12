@@ -10,7 +10,8 @@ Download it from [Releases](https://github.com/adamglassner/daybreak-classic/rel
 - Alarms with repeat days, names, snooze, your own WAV sound, and gradually rising volume
 - Bedtime reminder with an optional matching wake-up alarm
 - Stopwatch with laps, and a timer
-- Themes: Classic, Dark, Terminal and Clock radio (LED digits)
+- Themes: Classic, Dark, Terminal, Clock radio (LED digits) and Retro (flip clock)
+- Back up and restore alarms to a `.json` file that regular Daybreak can also read
 - Runs in the notification area; can start with Windows
 - On Windows 7 and later: weather (Open-Meteo) and update checks
 
